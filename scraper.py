@@ -13,7 +13,7 @@ def init():
     base_url_start = "https://www.hockey-reference.com/draft/NHL_"
     base_url_end = "_entry.html"
 
-    start_year = 2010
+    start_year = 1990
     end_year = 2019
     years = [i for i in range(start_year, end_year + 1)]
     year_dict = dict([(year, base_url_start + str(year) + base_url_end) for year in years])
@@ -27,8 +27,8 @@ def init():
 
 def run(state):
 
-    column_ids = ["year"]
-    column_labels = {"year": "Year"}
+    column_ids = ["year", "round"]
+    column_labels = {"year": "Year", "round": "Draft Round"}
     all_records = []
 
     for year, url in state['year_dict'].items():
@@ -47,12 +47,19 @@ def run(state):
         column_ids = column_ids + [x for x in cids if x not in column_ids]
         column_labels = {**column_labels, **clabels}
 
-        # Looping through rows and ignoring ones with classes - those are headers
-        for r in body.find_all(tr_no_class):
-            record = {"year": year}
-            for cid in cids:
-                record[cid] = r.find(attrs={"data-stat": cid}).string
-            all_records.append(record)
+        # start off at round 1
+        round = 1
+
+        for r in body.find_all('tr'):
+            if r.has_attr('class'):
+                if "over_header" in r.attrs["class"]:
+                    round = r.find(attrs={"data-stat": "header_draft"}).string.split()[1]
+            else:
+                record = {"year": year, "round": round}
+                for cid in cids:
+                    record[cid] = r.find(attrs={"data-stat": cid}).string
+                all_records.append(record)
+
 
     return {"columns": column_ids, "labels": column_labels, "records": all_records}
 
@@ -145,10 +152,7 @@ if __name__ == "__main__":
     labels = scraped_data['labels']
     records = scraped_data['records']
 
-    print(columns)
-    print(labels)
+    # print(columns)
+    # print(labels)
 
     write_csv_from_records("all_data.csv", columns, records, "data")
-
-    # records_by_year = run_by_year(init())
-    # write_csv_by_year(records_by_year, write_dir = 'data')
